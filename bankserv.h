@@ -8,8 +8,6 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <string.h>
-#ifndef SYSTEMS_ASST3_BANKPROGRAM_H
-#define SYSTEMS_ASST3_BANKPROGRAM_H
 
 #define BREAKCOMMAND ' '
 #define CREATE '1'
@@ -19,17 +17,21 @@
 #define QUERY '5'
 #define END '6'
 #define QUIT '7'
-#define ACCOUNT_EXISTS_ERROR  -1
+#define ERROR_ACCOUNT_EXISTS  -1
 #define NOT_IN_ACCOUNT_ERROR  -2
 #define ACCOUNT_DNE_ERROR -3
 #define ALREADY_SERVING_ACCOUNT_ERROR -4
 #define OVERDRAFT_ERROR -5
+#define QUIT_CONNECTION 2
+
+
 
 #define CREATE_SUCCESS "Successfully created account"
-#define DEPOSIT_SUCCESS "Deposited %lf into account %s.\nCurrent Balance Is: %lf"
+#define DEPOSIT_SUCCESS "Deposited %lf Into Account %s.\nCurrent Balance Is: %lf"
 #define SERVE_SUCCESS "Now Serving account %s"
-#define WITHDRAW_SUCCESS "Withdrew %lf from account %s.\nCurrent Balance Is: %lf"
-#define QUERY_SUCCESS "Current Balance for account %s: %lf"
+#define WITHDRAW_SUCCESS "Withdrew %lf From Account %s.\nCurrent Balance Is: %lf"
+#define QUERY_SUCCESS "Current Balance for Account %s: %lf"
+#define END_SUCCESS "Ended Service Session For Account %s"
 
 
 
@@ -54,6 +56,7 @@ typedef struct job{
 
 }Job;
 
+void printError(int code);
 int createCommand(char * input, Session * session);
 int serveCommand(char * input, Session * session);
 int depositCommand(char * input, Session * session);
@@ -90,19 +93,30 @@ int runCommand(char* input, Session * session){
         return quitCommand(input, session);
     }
 }
+void printError(int code){
+    
+}
 void * sessionRunner(void* connection){
     Session * session = (Session *) connection;
     char buffer[1024];
     while(1){
         read(session->socketID, buffer,1024);
         int code = runCommand(buffer,session);
+        if(code == QUIT_CONNECTION){
+            close(session->socketID);
+            free(session);
+            return NULL;
+        }
+        else{
+            printError(code);
+        }
 
     }
 
 }
 
 char * getData(char * input){
-    return input[1];
+    return input+1;
 }
 
 int createCommand(char * input, Session * session){
@@ -112,11 +126,11 @@ int createCommand(char * input, Session * session){
     while(cursor->next!=NULL){
         if(strcmp(cursor->name,buffer)==0){
 
-            return ACCOUNT_EXISTS_ERROR;
+            return ERROR_ACCOUNT_EXISTS;
         }
     }
     if(strcmp(cursor->name,buffer)==0){
-        return ACCOUNT_EXISTS_ERROR;
+        return ERROR_ACCOUNT_EXISTS;
     }
     Account *  newAccount = malloc(sizeof(Account));
     newAccount->name=buffer;
@@ -204,6 +218,28 @@ int queryCommand(char * input, Session * session){
     }
 }
 
+int endCommand(char * input, Session * session){
+    if(session->inAccount){
+        char * temp =session->currentAccount->name;
+        pthread_mutex_lock(accountLock);
+        session->currentAccount->connected=false;
+        session->currentAccount=NULL;
+        session->inAccount=false;
+        pthread_mutex_unlock(accountLock);
+        char * dest=NULL;
+        sprintf(dest, END_SUCCESS,temp);
+        write(session->socketID,dest,strlen(dest));
+        return 1;
+    }
+    else{
+        return NOT_IN_ACCOUNT_ERROR;
+    }
+}
 
+int quitCommand(char * input, Session * session){
+    session->currentAccount->connected=false;
+    session->currentAccount=NULL;
+    session->inAccount=false;
+    return QUIT_CONNECTION;
+}
 
-#endif //SYSTEMS_ASST3_BANKPROGRAM_H
