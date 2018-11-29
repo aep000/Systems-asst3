@@ -66,7 +66,7 @@ int endCommand(char * input, Session * session);
 int quitCommand(char * input, Session * session);
 
 Account * Accounts;
-pthread_mutex_t * accountLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t * accountLock;
 
 int runCommand(char* input, Session * session){
     int c = 0;
@@ -94,7 +94,7 @@ int runCommand(char* input, Session * session){
     }
 }
 void printError(int code){
-    
+
 }
 void * sessionRunner(void* connection){
     Session * session = (Session *) connection;

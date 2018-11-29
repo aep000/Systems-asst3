@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #define PORT 55535
 int main(int argc, char* argv[]) {
+    pthread_mutex_init(accountLock,0);
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
