@@ -122,10 +122,12 @@ void printError(int code, Session * session){
     }
 }
 void * sessionRunner(void* connection){
+    printf("RUNNING SESSION\n");
     Session * session = (Session *) connection;
     char buffer[1024];
     while(1){
         read(session->socketID, buffer,1024);
+	printf("%s\n",buffer);
         int code = runCommand(buffer,session);
         if(code == QUIT_CONNECTION){
             close(session->socketID);
@@ -148,15 +150,22 @@ int createCommand(char * input, Session * session){
     char * buffer = getData(input);
     pthread_mutex_lock(&accountLock);
     Account * cursor = Accounts;
+    if(Accounts==NULL){
+	Accounts= malloc(sizeof(Account));
+	Accounts->name=buffer;
+	printf("New Account %s\n",Accounts->name);
+	pthread_mutex_unlock(&accountLock);
+	return;
+    }
     while(cursor->next!=NULL){
         if(strcmp(cursor->name,buffer)==0){
-
-            return ERROR_ACCOUNT_EXISTS;
+            	return ERROR_ACCOUNT_EXISTS;
         }
     }
     if(strcmp(cursor->name,buffer)==0){
-        return ERROR_ACCOUNT_EXISTS;
+       	return ERROR_ACCOUNT_EXISTS;
     }
+    
     Account *  newAccount = malloc(sizeof(Account));
     newAccount->name=buffer;
     cursor->next=newAccount;
