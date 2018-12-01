@@ -175,6 +175,7 @@ int createCommand(char * input, Session * session){
 }
 
 int serveCommand(char * input, Session * session){
+    write(session->socketID,"ATTEMPTING TO SERVE\n",strlen("ATTEMPTING TO SERVE"));
     char * request = getData(input);
     pthread_mutex_lock(&accountLock);
     Account * cursor = Accounts;
