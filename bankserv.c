@@ -8,6 +8,7 @@
 #define PORT 55535
 int main(int argc, char* argv[]) {
     pthread_mutex_init(&accountLock,NULL);
+    printf("MUTEXED\n");
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -16,6 +17,7 @@ int main(int argc, char* argv[]) {
     clientAddr.sin_family = AF_INET;
     clientAddr.sin_addr.s_addr = INADDR_ANY;
     //CHECK THESE LINES FOR ERRORS
+    printf("BINDING\n");
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr))==-1){
         printf("BIND FAILED\n");
@@ -26,13 +28,15 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     char buffer[1024];
+    printf("ENTERING LOOP\n");
     while(1){
         int conn = accept(sockfd, (struct sockaddr*)NULL , NULL);
         printf("CONNECTED TO\n");
         Session* s = malloc(sizeof(Session));
         pthread_t tid;
         s->socketID = conn;
-        pthread_create(&tid,NULL,sessionRunner,s);
+        pthread_create(tid,sessionRunner,s,NULL);
+        
     }
     return 0;
 }
