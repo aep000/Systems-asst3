@@ -7,17 +7,21 @@
 #include <arpa/inet.h>
 #define PORT 55535
 int main(int argc, char* argv[]) {
+    if(argc != 2){
+	perror("Invalid Format Expecting 1 argument: server <PORT>\n");
+	exit(0);
+    }
     pthread_mutex_init(&accountLock,NULL);
-    printf("MUTEXED\n");
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(PORT);
+    
+    serv_addr.sin_port = htons(atoi(argv[1]));
     struct sockaddr_in clientAddr;
     clientAddr.sin_family = AF_INET;
     clientAddr.sin_addr.s_addr = INADDR_ANY;
     //CHECK THESE LINES FOR ERRORS
-    printf("BINDING\n");
+    printf("Starting up on port: %s\n",argv[1]);
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr))==-1){
         printf("BIND FAILED\n");
@@ -35,7 +39,7 @@ int main(int argc, char* argv[]) {
         Session* s = malloc(sizeof(Session));
         pthread_t tid;
         s->socketID = conn;
-        pthread_create(tid,sessionRunner,s,NULL);
+        pthread_create(&tid,NULL,sessionRunner,s);
         
     }
     return 0;

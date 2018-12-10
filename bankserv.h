@@ -26,12 +26,12 @@
 
 
 
-#define CREATE_SUCCESS "Successfully created account"
-#define DEPOSIT_SUCCESS "Deposited %lf Into Account %s.\nCurrent Balance Is: %lf"
-#define SERVE_SUCCESS "Now Serving account %s"
-#define WITHDRAW_SUCCESS "Withdrew %lf From Account %s.\nCurrent Balance Is: %lf"
-#define QUERY_SUCCESS "Current Balance for Account %s: %lf"
-#define END_SUCCESS "Ended Service Session For Account %s"
+#define CREATE_SUCCESS "Successfully created account %s\n"
+#define DEPOSIT_SUCCESS "Deposited %lf Into Account %s.\nCurrent Balance Is: %lf\n"
+#define SERVE_SUCCESS "Now Serving account %s\n"
+#define WITHDRAW_SUCCESS "Withdrew %lf From Account %s.\nCurrent Balance Is: %lf\n"
+#define QUERY_SUCCESS "Current Balance for Account %s: %lf\n"
+#define END_SUCCESS "Ended Service Session For Account %s\n"
 
 
 
@@ -69,6 +69,7 @@ Account * Accounts;
 pthread_mutex_t accountLock;
 
 int runCommand(char* input, Session * session){
+    printf("raw input %s\n",input);
     int c = 0;
     char command = input[0];
     if(command==CREATE){
@@ -129,18 +130,24 @@ void * sessionRunner(void* connection){
     Session * session = (Session *) connection;
     printf("INIT SESSION\n");
     char buffer[1024];
-    while(1){
-        read(session->socketID, buffer,1024);
-        int code = runCommand(buffer,session);
-        if(code == QUIT_CONNECTION){
-            close(session->socketID);
-            free(session);
-            return NULL;
-        }
-        else{
-            printError(code,session);
-        }
-
+    int c = 0; 
+    while(read(session->socketID, &buffer[c],1)>0){
+	printf("%s\n", buffer);
+        if(buffer[c]=='\0'){
+		printf("WOAH\n");
+		int code = runCommand(buffer,session);
+		if(code == QUIT_CONNECTION){
+            		close(session->socketID);
+            		free(session);
+            		return NULL;
+        	}
+        	else{
+            		printError(code,session);
+        	}
+		c=0;
+		continue;
+	}
+	c++;
     }
 
 }
@@ -153,6 +160,18 @@ int createCommand(char * input, Session * session){
     char * buffer = getData(input);
     pthread_mutex_lock(&accountLock);
     Account * cursor = Accounts;
+    if(Accounts==NULL){
+	Account *  newAccount = malloc(sizeof(Account));
+	printf("Creating new account %s\n",buffer);
+    	newAccount->name=buffer;
+	Accounts = newAccount;
+    	pthread_mutex_unlock(&accountLock);
+	char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
+    	sprintf(dest, CREATE_SUCCESS,buffer);
+    	write(session->socketID,dest,strlen(dest));
+    	return 1;
+
+    }
     while(cursor->next!=NULL){
         if(strcmp(cursor->name,buffer)==0){
 
@@ -164,15 +183,17 @@ int createCommand(char * input, Session * session){
         return ERROR_ACCOUNT_EXISTS;
     }
     Account *  newAccount = malloc(sizeof(Account));
+    printf("Creating new account %s\n",buffer);
     newAccount->name=buffer;
     cursor->next=newAccount;
     pthread_mutex_unlock(&accountLock);
-    write(session->socketID,CREATE_SUCCESS, sizeof(CREATE_SUCCESS));
+    char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
+    sprintf(dest, CREATE_SUCCESS,buffer);
+    write(session->socketID,dest,strlen(dest));
     return 1;
 }
 
 int serveCommand(char * input, Session * session){
-    write(session->socketID,"ATTEMPTING TO SERVE\n",strlen("ATTEMPTING TO SERVE"));
     char * request = getData(input);
     pthread_mutex_lock(&accountLock);
     Account * cursor = Accounts;
@@ -188,7 +209,8 @@ int serveCommand(char * input, Session * session){
         cursor->connected=true;
         session->currentAccount = cursor;
         session->inAccount = true;
-        char *dest = NULL;
+	printf("Serving %s\n",session->currentAccount->name);
+        char *dest = malloc(strlen(SERVE_SUCCESS)+strlen(session->currentAccount->name));
         sprintf(dest, SERVE_SUCCESS,session->currentAccount->name);
         write(session->socketID,dest,strlen(dest));
 
@@ -202,11 +224,14 @@ int serveCommand(char * input, Session * session){
 
 int depositCommand(char * input, Session * session){
     char * request = getData(input);
+    printf(request);
     if(session->inAccount){
         double amount;
-        sscanf(getData(request), "%lf", &amount);
+        sscanf(request, "%lf", &amount);
+	
+	printf("\nDepositing into %s\n", session->currentAccount->name);
         session->currentAccount->balance+=amount;
-        char * dest=NULL;
+	char *dest = malloc(600);
         sprintf(dest, DEPOSIT_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
         return 1;
@@ -222,13 +247,13 @@ int withdrawCommand(char * input, Session * session){
     char * request = getData(input);
     if(session->inAccount){
         double amount;
-        sscanf(getData(request), "%lf", &amount);
+        sscanf(request, "%lf", &amount);
         if(amount>session->currentAccount->balance){
             return ERROR_OVERDRAFT;
         }
         session->currentAccount->balance-=amount;
-        char * dest=NULL;
-        sprintf(dest, WITHDRAW_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
+       	char *dest = malloc(600); 
+	sprintf(dest, WITHDRAW_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
         return 1;
     }
@@ -240,7 +265,7 @@ int withdrawCommand(char * input, Session * session){
 
 int queryCommand(char * input, Session * session){
     if(session->inAccount){
-        char * dest=NULL;
+        char *dest = malloc(600);
         sprintf(dest, QUERY_SUCCESS,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
         return 1;
@@ -258,7 +283,7 @@ int endCommand(char * input, Session * session){
         session->currentAccount=NULL;
         session->inAccount=false;
         pthread_mutex_unlock(&accountLock);
-        char * dest=NULL;
+        char *dest = malloc(600);
         sprintf(dest, END_SUCCESS,temp);
         write(session->socketID,dest,strlen(dest));
         return 1;
