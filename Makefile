@@ -1,6 +1,7 @@
-all: bankserv.c
+all: bankserv.c bankclient.c
 	gcc bankserv.c -o server -lpthread -lm -g
-server:
+	gcc bankclient.c -o client -lpthread -lm -g
+server: bankserv.c
 	gcc bankserv.c -o server -lpthread -lm -g
 client: bankclient.c
 	gcc bankclient.c -o client -lpthread -lm -g

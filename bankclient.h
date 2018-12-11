@@ -71,7 +71,8 @@ char runCommand(char * command, char * argument, int sockfd){
 	}
 	output[0]=com;
 	output[1]='\0';
-	strcat(output,argument);
+	if(argument != NULL)
+		strcat(output,argument);
 	printf("Raw command %s\n",output);
 	write(sockfd,output,strlen(output)+1);
 	free(output);

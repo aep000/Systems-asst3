@@ -22,6 +22,7 @@
 #define ERROR_ACCOUNT_DNE -3
 #define ERROR_ALREADY_SERVING_ACCOUNT -4
 #define ERROR_OVERDRAFT -5
+#define ERROR_IN_SERVICE_MODE -6
 #define QUIT_CONNECTION 2
 
 
@@ -97,32 +98,37 @@ int runCommand(char* input, Session * session){
 void printError(int code, Session * session){
     char * error = "";
     if(code == ERROR_ACCOUNT_EXISTS){
-        error= "Cannot Create Account With That Name Exists Already";
-        printf("%s\n",error);
-        write(session->socketID,error,strlen(error));
+        error= "Cannot Create Account With That Name Exists Already\n";
+        printf("%s",error);
+        write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ACCOUNT_DNE){
-        error="Cannot Serve Account, No Account Exists With That Name";
-        printf("%s\n",error);
-        write(session->socketID,error,strlen(error));
+        error="Cannot Serve Account, No Account Exists With That Name\n";
+        printf("%s",error);
+        write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ALREADY_SERVING_ACCOUNT){
-        error = "There is already a user connected to this account try again later";
-        printf("%s\n",error);
-        write(session->socketID,error,strlen(error));
+        error = "There is already a user connected to this account try again later\n";
+        printf("%s",error);
+        write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_NOT_IN_ACCOUNT){
-        error = "Unable to fulfill request, you are not currently connected to an account";
-        printf("%s\n",error);
-        write(session->socketID,error,strlen(error));
+        error = "Unable to fulfill request, you are not currently connected to an account\n";
+        printf("%s",error);
+        write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_OVERDRAFT){
-        error="Your withdrawal is too large, this account does not have enough money";
-        write(session->socketID,error,strlen(error));
+        error="Your withdrawal is too large, this account does not have enough money\n";
+        write(session->socketID,error,strlen(error)+1);
+        return;
+    }
+    if(code == ERROR_IN_SERVICE_MODE){
+	error="Operation not permited, exit service mode to use this command\n";
+        write(session->socketID,error,strlen(error)+1);
         return;
     }
 }
@@ -163,7 +169,8 @@ int createCommand(char * input, Session * session){
     if(Accounts==NULL){
 	Account *  newAccount = malloc(sizeof(Account));
 	printf("Creating new account %s\n",buffer);
-    	newAccount->name=buffer;
+	newAccount->name = malloc(strlen(buffer)+1);
+	strcpy(newAccount->name,buffer);
 	Accounts = newAccount;
     	pthread_mutex_unlock(&accountLock);
 	char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
@@ -174,17 +181,19 @@ int createCommand(char * input, Session * session){
     }
     while(cursor->next!=NULL){
         if(strcmp(cursor->name,buffer)==0){
-
+	    pthread_mutex_unlock(&accountLock);
             return ERROR_ACCOUNT_EXISTS;
         }
         cursor=cursor->next;
     }
     if(strcmp(cursor->name,buffer)==0){
+	pthread_mutex_unlock(&accountLock);
         return ERROR_ACCOUNT_EXISTS;
     }
     Account *  newAccount = malloc(sizeof(Account));
     printf("Creating new account %s\n",buffer);
-    newAccount->name=buffer;
+    newAccount->name = malloc(strlen(buffer)+1);
+    strcpy(newAccount->name,buffer);
     cursor->next=newAccount;
     pthread_mutex_unlock(&accountLock);
     char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
@@ -194,6 +203,9 @@ int createCommand(char * input, Session * session){
 }
 
 int serveCommand(char * input, Session * session){
+    if(session->inAccount){
+	return ERROR_IN_SERVICE_MODE;
+    }
     char * request = getData(input);
     pthread_mutex_lock(&accountLock);
     Account * cursor = Accounts;
@@ -201,8 +213,10 @@ int serveCommand(char * input, Session * session){
         if(strcmp(cursor->name,request)==0){
             break;
         }
+	cursor = cursor->next;
     }
     if(cursor==NULL){
+	pthread_mutex_unlock(&accountLock);
         return ERROR_ACCOUNT_DNE;
     }
     if(!cursor->connected){
@@ -216,6 +230,7 @@ int serveCommand(char * input, Session * session){
 
     }
     else{
+	pthread_mutex_unlock(&accountLock);
         return ERROR_ALREADY_SERVING_ACCOUNT;
     }
     pthread_mutex_unlock(&accountLock);

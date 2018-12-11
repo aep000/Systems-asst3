@@ -47,8 +47,14 @@ int main(int argc, char * argv[]){
 		if(ch == '\n'){
 			buff[c]='\0';
 			char * temp = strstr(buff," ");
-			char * arg = temp+1;
-			*temp = '\0';
+			char * arg;
+			if (temp == NULL){
+				arg = NULL;	
+			}
+			else{
+				arg = temp+1;
+				*temp = '\0';
+			}
 			runCommand(buff,arg,sockfd);
 			c=0;
 			memset(buff,0,strlen(buff));;
