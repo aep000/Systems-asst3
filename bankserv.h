@@ -138,9 +138,7 @@ void * sessionRunner(void* connection){
     char buffer[1024];
     int c = 0; 
     while(read(session->socketID, &buffer[c],1)>0){
-	printf("%s\n", buffer);
         if(buffer[c]=='\0'){
-		printf("WOAH\n");
 		int code = runCommand(buffer,session);
 		if(code == QUIT_CONNECTION){
             		close(session->socketID);
