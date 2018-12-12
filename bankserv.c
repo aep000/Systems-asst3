@@ -5,13 +5,16 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <signal.h>
 #define PORT 55535
 int main(int argc, char* argv[]) {
     if(argc != 2){
 	perror("Invalid Format Expecting 1 argument: server <PORT>\n");
 	exit(0);
     }
-    pthread_mutex_init(&accountLock,NULL);
+    sem_init(&accountLock,0,1);
+    signal(SIGALRM, alarmHandler);
+    alarm(15);
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);

@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <semaphore.h>
-
+#include <signal.h>
 #define BREAKCOMMAND ' '
 #define CREATE '1'
 #define SERVE '2'
@@ -29,13 +29,13 @@
 
 
 #define CREATE_SUCCESS "Successfully created account %s\n"
-#define DEPOSIT_SUCCESS "Deposited %.2f Into Account %s.\nCurrent Balance Is: %.2f\n"
+#define DEPOSIT_SUCCESS "Deposited %lf Into Account %s.\nCurrent Balance Is: %lf\n"
 #define SERVE_SUCCESS "Now Serving account %s\n"
-#define WITHDRAW_SUCCESS "Withdrew %.2f From Account %s.\nCurrent Balance Is: %.2f\n"
-#define QUERY_SUCCESS "Current Balance for Account %s: %.2f\n"
+#define WITHDRAW_SUCCESS "Withdrew %lf From Account %s.\nCurrent Balance Is: %lf\n"
+#define QUERY_SUCCESS "Current Balance for Account %s: %lf\n"
 #define END_SUCCESS "Ended Service Session For Account %s\n"
 
-
+#define ALARM_MESSAGE "%s	%lf	%s\n"
 
 typedef struct account{
     double balance;
@@ -67,6 +67,8 @@ int withdrawCommand(char * input, Session * session);
 int queryCommand(char * input, Session * session);
 int endCommand(char * input, Session * session);
 int quitCommand(char * input, Session * session);
+void alarmHandler(int);
+
 
 Account * Accounts;
 sem_t accountLock;
@@ -295,10 +297,9 @@ int queryCommand(char * input, Session * session){
 
 int endCommand(char * input, Session * session){
     if(session->inAccount){
-        sem_wait(&accountLock);
+	sem_wait(&accountLock);
 	      printf("<%s>: Ending service of account %s\n", session->clientIP, session->currentAccount->name);
-        char * temp =session->currentAccount->name;
-        sem_wait(&accountLock);
+        char * temp =session->currentAccount->name; 
         session->currentAccount->connected=false;
         session->currentAccount=NULL;
         session->inAccount=false;
@@ -324,4 +325,27 @@ int quitCommand(char * input, Session * session){
       sem_post(&accountLock);
     }
     return QUIT_CONNECTION;
+}
+
+
+void alarmHandler(int sig){
+	sem_wait(&accountLock);
+	Account * cursor = Accounts;
+	if(cursor==NULL){
+		printf("Diagnostics:\nNo Accounts\n");
+	}
+	else{
+		printf("Diagnostics:\n");
+		while(cursor !=NULL){
+			char * inservice = "IN SERVICE";
+			if(!cursor->connected){
+				inservice="";
+			}
+			printf(ALARM_MESSAGE,cursor->name,cursor->balance,inservice);
+			cursor = cursor->next;
+		}
+	}
+	signal(SIGALRM, alarmHandler);
+	alarm(15);
+	sem_post(&accountLock);
 }
