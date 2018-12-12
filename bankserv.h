@@ -140,6 +140,8 @@ void * sessionRunner(void* connection){
     Session * session = (Session *) connection;
     char buffer[1024];
     int c = 0;
+    char * intro = "Connected To Server\n";
+    write(session->socketID,intro,strlen(intro)+1);
     while(read(session->socketID, &buffer[c],1)>0){
         if(buffer[c]=='\0'){
 		int code = runCommand(buffer,session);
