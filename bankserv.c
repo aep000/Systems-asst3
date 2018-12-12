@@ -18,8 +18,6 @@ int main(int argc, char* argv[]) {
     
     serv_addr.sin_port = htons(atoi(argv[1]));
     struct sockaddr_in clientAddr;
-    clientAddr.sin_family = AF_INET;
-    clientAddr.sin_addr.s_addr = INADDR_ANY;
     //CHECK THESE LINES FOR ERRORS
     printf("Starting up on port: %s\n",argv[1]);
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -33,11 +31,15 @@ int main(int argc, char* argv[]) {
     }
     char buffer[1024];
     printf("ENTERING LOOP\n");
+    int clientLen = sizeof(clientAddr);
     while(1){
-        int conn = accept(sockfd, (struct sockaddr*)NULL , NULL);
-        printf("CONNECTED TO\n");
+        int conn = accept(sockfd, (struct sockaddr*) &clientAddr, &clientLen);
+	char * strAddr = inet_ntoa(clientAddr.sin_addr);
+        printf("Incoming Connection from: %s\n",strAddr);
         Session* s = malloc(sizeof(Session));
         pthread_t tid;
+	s->clientIP = malloc(strlen(strAddr+1));
+	strcpy(s->clientIP,strAddr);
         s->socketID = conn;
         pthread_create(&tid,NULL,sessionRunner,s);
         

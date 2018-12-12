@@ -18,7 +18,7 @@
 char runCommand(char * command, char * argument, int sockfd);
 int isOnlyDouble(const char* str);
 void * sockReadLoop(void * sockfd);
-
+int endFlag = 0;
 int isOnlyDouble(const char* str)
 {
     if(strcmp("0",str)==0)
@@ -32,7 +32,6 @@ int isOnlyDouble(const char* str)
 }
 
 char runCommand(char * command, char * argument, int sockfd){
-	printf("Command: %s\nArgument: %s\n",command,argument);
 	char * fixedCommand = command;
 	char * output = malloc(1024);
 	char com;
@@ -73,11 +72,11 @@ char runCommand(char * command, char * argument, int sockfd){
 	output[1]='\0';
 	if(argument != NULL)
 		strcat(output,argument);
-	printf("Raw command %s\n",output);
 	write(sockfd,output,strlen(output)+1);
 	free(output);
 	if(com == QUIT){
 		close(sockfd);
+		endFlag = 1;
 	}
 	return com;
 
@@ -86,7 +85,15 @@ char runCommand(char * command, char * argument, int sockfd){
 void * sockReadLoop(void * sockfd){
 	int sock = *(int *) sockfd;
 	char ch;
+	char last;
 	while(read(sock, &ch, 1) > 0){
+		if(last == '\n')
+			printf("<server>: ");
 		printf("%c",ch);
- 	}	
+		last = ch;
+ 	}
+	printf("Connection To Server Ended\n");
+	endFlag = 1;
+	raise(SIGTERM);
+	return NULL;	
 }

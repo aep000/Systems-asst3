@@ -28,10 +28,10 @@
 
 
 #define CREATE_SUCCESS "Successfully created account %s\n"
-#define DEPOSIT_SUCCESS "Deposited %lf Into Account %s.\nCurrent Balance Is: %lf\n"
+#define DEPOSIT_SUCCESS "Deposited %.2f Into Account %s.\nCurrent Balance Is: %.2f\n"
 #define SERVE_SUCCESS "Now Serving account %s\n"
-#define WITHDRAW_SUCCESS "Withdrew %lf From Account %s.\nCurrent Balance Is: %lf\n"
-#define QUERY_SUCCESS "Current Balance for Account %s: %lf\n"
+#define WITHDRAW_SUCCESS "Withdrew %.2f From Account %s.\nCurrent Balance Is: %.2f\n"
+#define QUERY_SUCCESS "Current Balance for Account %s: %.2f\n"
 #define END_SUCCESS "Ended Service Session For Account %s\n"
 
 
@@ -45,6 +45,7 @@ typedef struct account{
 
 typedef struct session{
     struct account * currentAccount;
+    char * clientIP;
     bool inAccount;
     int socketID;
 }Session;
@@ -70,7 +71,6 @@ Account * Accounts;
 pthread_mutex_t accountLock;
 
 int runCommand(char* input, Session * session){
-    printf("raw input %s\n",input);
     int c = 0;
     char command = input[0];
     if(command==CREATE){
@@ -98,26 +98,26 @@ int runCommand(char* input, Session * session){
 void printError(int code, Session * session){
     char * error = "";
     if(code == ERROR_ACCOUNT_EXISTS){
-        error= "Cannot Create Account With That Name Exists Already\n";
-        printf("%s",error);
+        error= "Cannot Create Account, Account With That Name Already Exists\n";
+        //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ACCOUNT_DNE){
         error="Cannot Serve Account, No Account Exists With That Name\n";
-        printf("%s",error);
+        //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ALREADY_SERVING_ACCOUNT){
         error = "There is already a user connected to this account try again later\n";
-        printf("%s",error);
+        //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_NOT_IN_ACCOUNT){
         error = "Unable to fulfill request, you are not currently connected to an account\n";
-        printf("%s",error);
+        //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
@@ -132,9 +132,9 @@ void printError(int code, Session * session){
         return;
     }
 }
+
 void * sessionRunner(void* connection){
     Session * session = (Session *) connection;
-    printf("INIT SESSION\n");
     char buffer[1024];
     int c = 0; 
     while(read(session->socketID, &buffer[c],1)>0){
@@ -166,7 +166,7 @@ int createCommand(char * input, Session * session){
     Account * cursor = Accounts;
     if(Accounts==NULL){
 	Account *  newAccount = malloc(sizeof(Account));
-	printf("Creating new account %s\n",buffer);
+	printf("<%s>: Creating new account %s\n",session->clientIP,buffer);
 	newAccount->name = malloc(strlen(buffer)+1);
 	strcpy(newAccount->name,buffer);
 	Accounts = newAccount;
@@ -189,7 +189,7 @@ int createCommand(char * input, Session * session){
         return ERROR_ACCOUNT_EXISTS;
     }
     Account *  newAccount = malloc(sizeof(Account));
-    printf("Creating new account %s\n",buffer);
+    printf("<%s>: Creating new account %s\n",session->clientIP,buffer);
     newAccount->name = malloc(strlen(buffer)+1);
     strcpy(newAccount->name,buffer);
     cursor->next=newAccount;
@@ -221,7 +221,7 @@ int serveCommand(char * input, Session * session){
         cursor->connected=true;
         session->currentAccount = cursor;
         session->inAccount = true;
-	printf("Serving %s\n",session->currentAccount->name);
+	printf("<%s>: Serving %s\n",session->clientIP,session->currentAccount->name);
         char *dest = malloc(strlen(SERVE_SUCCESS)+strlen(session->currentAccount->name));
         sprintf(dest, SERVE_SUCCESS,session->currentAccount->name);
         write(session->socketID,dest,strlen(dest));
@@ -237,12 +237,11 @@ int serveCommand(char * input, Session * session){
 
 int depositCommand(char * input, Session * session){
     char * request = getData(input);
-    printf(request);
     if(session->inAccount){
         double amount;
         sscanf(request, "%lf", &amount);
 	
-	printf("\nDepositing into %s\n", session->currentAccount->name);
+	printf("<%s>: Depositing $%s into %s\n", session->clientIP, request, session->currentAccount->name);
         session->currentAccount->balance+=amount;
 	char *dest = malloc(600);
         sprintf(dest, DEPOSIT_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
@@ -264,6 +263,7 @@ int withdrawCommand(char * input, Session * session){
         if(amount>session->currentAccount->balance){
             return ERROR_OVERDRAFT;
         }
+	printf("<%s>: Withdrawing $%s from %s\n", session->clientIP, request, session->currentAccount->name);
         session->currentAccount->balance-=amount;
        	char *dest = malloc(600); 
 	sprintf(dest, WITHDRAW_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
@@ -290,6 +290,7 @@ int queryCommand(char * input, Session * session){
 
 int endCommand(char * input, Session * session){
     if(session->inAccount){
+	printf("<%s>: Ending service of account %s\n", session->clientIP, session->currentAccount->name);
         char * temp =session->currentAccount->name;
         pthread_mutex_lock(&accountLock);
         session->currentAccount->connected=false;
@@ -307,9 +308,12 @@ int endCommand(char * input, Session * session){
 }
 
 int quitCommand(char * input, Session * session){
-    session->currentAccount->connected=false;
-    session->currentAccount=NULL;
-    session->inAccount=false;
+    printf("<%s>: Disconnecting\n", session->clientIP);
+    if(session->currentAccount !=NULL){
+    	session->currentAccount->connected=false;
+    	session->currentAccount=NULL;
+    	session->inAccount=false;
+    }
     return QUIT_CONNECTION;
 }
 

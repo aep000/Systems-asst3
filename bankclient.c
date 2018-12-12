@@ -44,6 +44,10 @@ int main(int argc, char * argv[]){
 	char ch;
 	int c = 0;
 	while(read(0, &ch, 1) > 0){
+		if(endFlag){
+			printf("Connection Terminated\n");
+			return;
+		}
 		if(ch == '\n'){
 			buff[c]='\0';
 			char * temp = strstr(buff," ");
@@ -62,6 +66,10 @@ int main(int argc, char * argv[]){
 		else{
 			buff[c]=ch;
 			c+=1;
+		}
+		if(endFlag){
+			printf("Connection Terminated\n");
+			return;
 		}
 		
  	}
