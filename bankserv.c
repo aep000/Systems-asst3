@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    
+
     serv_addr.sin_port = htons(atoi(argv[1]));
     struct sockaddr_in clientAddr;
     //CHECK THESE LINES FOR ERRORS
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 	strcpy(s->clientIP,strAddr);
         s->socketID = conn;
         pthread_create(&tid,NULL,sessionRunner,s);
-        
+
     }
     return 0;
 }

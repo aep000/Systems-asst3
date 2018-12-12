@@ -1,5 +1,5 @@
 #include <string.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <netinet/in.h>
@@ -95,5 +95,5 @@ void * sockReadLoop(void * sockfd){
 	printf("Connection To Server Ended\n");
 	endFlag = 1;
 	raise(SIGTERM);
-	return NULL;	
+	return NULL;
 }

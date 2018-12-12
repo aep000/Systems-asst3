@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <string.h>
+#include <semaphore.h>
 
 #define BREAKCOMMAND ' '
 #define CREATE '1'
@@ -68,7 +69,7 @@ int endCommand(char * input, Session * session);
 int quitCommand(char * input, Session * session);
 
 Account * Accounts;
-pthread_mutex_t accountLock;
+sem_t accountLock;
 
 int runCommand(char* input, Session * session){
     int c = 0;
@@ -136,7 +137,7 @@ void printError(int code, Session * session){
 void * sessionRunner(void* connection){
     Session * session = (Session *) connection;
     char buffer[1024];
-    int c = 0; 
+    int c = 0;
     while(read(session->socketID, &buffer[c],1)>0){
         if(buffer[c]=='\0'){
 		int code = runCommand(buffer,session);
@@ -162,7 +163,7 @@ char * getData(char * input){
 
 int createCommand(char * input, Session * session){
     char * buffer = getData(input);
-    pthread_mutex_lock(&accountLock);
+    sem_wait(&accountLock);
     Account * cursor = Accounts;
     if(Accounts==NULL){
 	Account *  newAccount = malloc(sizeof(Account));
@@ -170,7 +171,7 @@ int createCommand(char * input, Session * session){
 	newAccount->name = malloc(strlen(buffer)+1);
 	strcpy(newAccount->name,buffer);
 	Accounts = newAccount;
-    	pthread_mutex_unlock(&accountLock);
+  sem_post(&accountLock);
 	char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
     	sprintf(dest, CREATE_SUCCESS,buffer);
     	write(session->socketID,dest,strlen(dest));
@@ -179,13 +180,13 @@ int createCommand(char * input, Session * session){
     }
     while(cursor->next!=NULL){
         if(strcmp(cursor->name,buffer)==0){
-	    pthread_mutex_unlock(&accountLock);
+	    sem_post(&accountLock);
             return ERROR_ACCOUNT_EXISTS;
         }
         cursor=cursor->next;
     }
     if(strcmp(cursor->name,buffer)==0){
-	pthread_mutex_unlock(&accountLock);
+	sem_post(&accountLock);
         return ERROR_ACCOUNT_EXISTS;
     }
     Account *  newAccount = malloc(sizeof(Account));
@@ -193,7 +194,7 @@ int createCommand(char * input, Session * session){
     newAccount->name = malloc(strlen(buffer)+1);
     strcpy(newAccount->name,buffer);
     cursor->next=newAccount;
-    pthread_mutex_unlock(&accountLock);
+    sem_post(&accountLock);
     char *dest = malloc(strlen(CREATE_SUCCESS)+strlen(buffer));
     sprintf(dest, CREATE_SUCCESS,buffer);
     write(session->socketID,dest,strlen(dest));
@@ -205,7 +206,7 @@ int serveCommand(char * input, Session * session){
 	return ERROR_IN_SERVICE_MODE;
     }
     char * request = getData(input);
-    pthread_mutex_lock(&accountLock);
+    sem_wait(&accountLock);
     Account * cursor = Accounts;
     while(cursor!=NULL){
         if(strcmp(cursor->name,request)==0){
@@ -214,7 +215,7 @@ int serveCommand(char * input, Session * session){
 	cursor = cursor->next;
     }
     if(cursor==NULL){
-	pthread_mutex_unlock(&accountLock);
+	sem_post(&accountLock);
         return ERROR_ACCOUNT_DNE;
     }
     if(!cursor->connected){
@@ -228,22 +229,23 @@ int serveCommand(char * input, Session * session){
 
     }
     else{
-	pthread_mutex_unlock(&accountLock);
+	sem_post(&accountLock);
         return ERROR_ALREADY_SERVING_ACCOUNT;
     }
-    pthread_mutex_unlock(&accountLock);
+    sem_post(&accountLock);
     return 1;
 }
 
 int depositCommand(char * input, Session * session){
     char * request = getData(input);
     if(session->inAccount){
+        sem_wait(&accountLock);
         double amount;
         sscanf(request, "%lf", &amount);
-	
-	printf("<%s>: Depositing $%s into %s\n", session->clientIP, request, session->currentAccount->name);
+	      printf("<%s>: Depositing $%s into %s\n", session->clientIP, request, session->currentAccount->name);
         session->currentAccount->balance+=amount;
-	char *dest = malloc(600);
+        sem_post(&accountLock);
+	      char *dest = malloc(600);
         sprintf(dest, DEPOSIT_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
         return 1;
@@ -258,14 +260,17 @@ int depositCommand(char * input, Session * session){
 int withdrawCommand(char * input, Session * session){
     char * request = getData(input);
     if(session->inAccount){
+      sem_wait(&accountLock);
         double amount;
         sscanf(request, "%lf", &amount);
         if(amount>session->currentAccount->balance){
+            sem_post(&accountLock);
             return ERROR_OVERDRAFT;
         }
 	printf("<%s>: Withdrawing $%s from %s\n", session->clientIP, request, session->currentAccount->name);
         session->currentAccount->balance-=amount;
-       	char *dest = malloc(600); 
+        sem_post(&accountLock);
+       	char *dest = malloc(600);
 	sprintf(dest, WITHDRAW_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
         return 1;
@@ -290,16 +295,18 @@ int queryCommand(char * input, Session * session){
 
 int endCommand(char * input, Session * session){
     if(session->inAccount){
-	printf("<%s>: Ending service of account %s\n", session->clientIP, session->currentAccount->name);
+        sem_wait(&accountLock);
+	      printf("<%s>: Ending service of account %s\n", session->clientIP, session->currentAccount->name);
         char * temp =session->currentAccount->name;
-        pthread_mutex_lock(&accountLock);
+        sem_wait(&accountLock);
         session->currentAccount->connected=false;
         session->currentAccount=NULL;
         session->inAccount=false;
-        pthread_mutex_unlock(&accountLock);
+        sem_post(&accountLock);
         char *dest = malloc(600);
         sprintf(dest, END_SUCCESS,temp);
         write(session->socketID,dest,strlen(dest));
+        sem_post(&accountLock);
         return 1;
     }
     else{
@@ -310,10 +317,11 @@ int endCommand(char * input, Session * session){
 int quitCommand(char * input, Session * session){
     printf("<%s>: Disconnecting\n", session->clientIP);
     if(session->currentAccount !=NULL){
+      sem_wait(&accountLock);
     	session->currentAccount->connected=false;
     	session->currentAccount=NULL;
     	session->inAccount=false;
+      sem_post(&accountLock);
     }
     return QUIT_CONNECTION;
 }
-
