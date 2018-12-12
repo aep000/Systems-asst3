@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
     sem_init(&accountLock,0,1);
     signal(SIGALRM, alarmHandler);
     alarm(15);
+    signal(SIGINT,interuptHandler);
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -44,6 +45,11 @@ int main(int argc, char* argv[]) {
 	s->clientIP = malloc(strlen(strAddr+1));
 	strcpy(s->clientIP,strAddr);
         s->socketID = conn;
+	s->next = Sessions;
+	s->last = NULL;
+	if(Sessions)
+		Sessions->last = s;
+	Sessions = s;
         pthread_create(&tid,NULL,sessionRunner,s);
 
     }

@@ -49,15 +49,10 @@ typedef struct session{
     char * clientIP;
     bool inAccount;
     int socketID;
+    struct session* next;
+    struct session* last;
 }Session;
 
-typedef struct job{
-    int socketID;
-    int job;
-    struct session * session;
-    char * data;
-
-}Job;
 
 void printError(int code, Session * session);
 int createCommand(char * input, Session * session);
@@ -68,11 +63,12 @@ int queryCommand(char * input, Session * session);
 int endCommand(char * input, Session * session);
 int quitCommand(char * input, Session * session);
 void alarmHandler(int);
-
+void interuptHandler(int);
 
 Account * Accounts;
 sem_t accountLock;
-
+sem_t printLock;
+Session * Sessions;
 int runCommand(char* input, Session * session){
     int c = 0;
     char command = input[0];
@@ -243,15 +239,16 @@ int serveCommand(char * input, Session * session){
 int depositCommand(char * input, Session * session){
     char * request = getData(input);
     if(session->inAccount){
-        sem_wait(&accountLock);
         double amount;
         sscanf(request, "%lf", &amount);
-	      printf("<%s>: Depositing $%s into %s\n", session->clientIP, request, session->currentAccount->name);
+	sem_wait(&accountLock);
         session->currentAccount->balance+=amount;
         sem_post(&accountLock);
-	      char *dest = malloc(600);
+	printf("<%s>: Depositing $%s into %s\n", session->clientIP, request, session->currentAccount->name);
+	char *dest = malloc(600);
         sprintf(dest, DEPOSIT_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
+	free(dest);
         return 1;
     }
     else{
@@ -264,16 +261,17 @@ int depositCommand(char * input, Session * session){
 int withdrawCommand(char * input, Session * session){
     char * request = getData(input);
     if(session->inAccount){
-      sem_wait(&accountLock);
         double amount;
         sscanf(request, "%lf", &amount);
+	sem_wait(&accountLock);
         if(amount>session->currentAccount->balance){
             sem_post(&accountLock);
             return ERROR_OVERDRAFT;
         }
+	session->currentAccount->balance-=amount;
+	sem_post(&accountLock);
 	printf("<%s>: Withdrawing $%s from %s\n", session->clientIP, request, session->currentAccount->name);
-        session->currentAccount->balance-=amount;
-        sem_post(&accountLock);
+        
        	char *dest = malloc(600);
 	sprintf(dest, WITHDRAW_SUCCESS,amount,session->currentAccount->name,session->currentAccount->balance);
         write(session->socketID,dest,strlen(dest));
@@ -319,12 +317,21 @@ int endCommand(char * input, Session * session){
 
 int quitCommand(char * input, Session * session){
     printf("<%s>: Disconnecting\n", session->clientIP);
+    char * message =  "Ending Connection See you later\n";
+    write(session->socketID,message,strlen(message)+1);
+    if(session->last){
+	session->last->next = session->next;
+    }
+    else{
+	Sessions = session->next;
+    }
     if(session->currentAccount !=NULL){
       sem_wait(&accountLock);
     	session->currentAccount->connected=false;
     	session->currentAccount=NULL;
     	session->inAccount=false;
       sem_post(&accountLock);
+      
     }
     return QUIT_CONNECTION;
 }
@@ -350,4 +357,26 @@ void alarmHandler(int sig){
 	signal(SIGALRM, alarmHandler);
 	alarm(15);
 	sem_post(&accountLock);
+}
+
+void interuptHandler(int sig){
+	sem_wait(&accountLock);
+	printf("Shutting Down Server\n");
+	Session * slast;
+	while(Sessions != NULL){
+		char * message =  "Server Shutting Down, Bye\n";
+    		write(Sessions->socketID,message,strlen(message)+1);
+		close(Sessions->socketID);
+		slast = Sessions;
+		Sessions = Sessions->next;
+		free(slast);
+	}	
+	Account * alast;
+	while(Accounts != NULL){
+		alast = Accounts;
+		Accounts = Accounts->next;
+		free(alast);
+	}
+	sem_post(&accountLock);
+	exit(1);
 }

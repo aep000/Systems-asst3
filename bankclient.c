@@ -61,7 +61,8 @@ int main(int argc, char * argv[]){
 			}
 			runCommand(buff,arg,sockfd);
 			c=0;
-			memset(buff,0,strlen(buff));;
+			memset(buff,0,strlen(buff));
+			sleep(2);
 		}
 		else{
 			buff[c]=ch;

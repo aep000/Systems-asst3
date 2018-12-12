@@ -75,8 +75,8 @@ char runCommand(char * command, char * argument, int sockfd){
 	write(sockfd,output,strlen(output)+1);
 	free(output);
 	if(com == QUIT){
-		close(sockfd);
-		endFlag = 1;
+		//close(sockfd);
+		//endFlag = 1;
 	}
 	return com;
 
@@ -92,8 +92,8 @@ void * sockReadLoop(void * sockfd){
 		printf("%c",ch);
 		last = ch;
  	}
-	printf("Connection To Server Ended\n");
 	endFlag = 1;
-	raise(SIGTERM);
+	
+	raise(SIGINT);
 	return NULL;
 }
