@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         printf("Incoming Connection from: %s\n",strAddr);
         Session* s = malloc(sizeof(Session));
         pthread_t tid;
-	s->clientIP = malloc(strlen(strAddr+1));
+	s->clientIP = malloc(strlen(strAddr)+1);
 	strcpy(s->clientIP,strAddr);
         s->socketID = conn;
 	s->next = Sessions;

@@ -35,33 +35,33 @@ char runCommand(char * command, char * argument, int sockfd){
 	char * fixedCommand = command;
 	char * output = malloc(1024);
 	char com;
-	if(strcasecmp(fixedCommand,"create")==0){
+	if(strcmp(fixedCommand,"create")==0){
 		com=CREATE;
 	}
-	if(strcasecmp(fixedCommand,"serve")==0){
+	if(strcmp(fixedCommand,"serve")==0){
 		com=SERVE;
 	}
-	if(strcasecmp(fixedCommand,"deposit")==0){
+	if(strcmp(fixedCommand,"deposit")==0){
 		if(!isOnlyDouble(argument)){
 			fprintf(stderr,"Deposit argument is not valid, should be double\n");
 			return 'd';
 		}
 		com=DEPOSIT;
 	}
-	if(strcasecmp(fixedCommand,"withdraw")==0){
+	if(strcmp(fixedCommand,"withdraw")==0){
 		if(!isOnlyDouble(argument)){
 			fprintf(stderr,"Withdraw argument is not valid, should be double\n");
 			return 'd';
 		}
 		com=WITHDRAW;
 	}
-	if(strcasecmp(fixedCommand,"query")==0){
+	if(strcmp(fixedCommand,"query")==0){
 		com=QUERY;
 	}
-	if(strcasecmp(fixedCommand,"end")==0){
+	if(strcmp(fixedCommand,"end")==0){
 		com=END;
 	}
-	if(strcasecmp(fixedCommand,"quit")==0){
+	if(strcmp(fixedCommand,"quit")==0){
 		com=QUIT;
 	}
 	if(com == 0){

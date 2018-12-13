@@ -59,10 +59,11 @@ int main(int argc, char * argv[]){
 				arg = temp+1;
 				*temp = '\0';
 			}
-			runCommand(buff,arg,sockfd);
+			char code = runCommand(buff,arg,sockfd);
 			c=0;
 			memset(buff,0,strlen(buff));
-			sleep(2);
+			if(code != 'i')
+				sleep(2);
 		}
 		else{
 			buff[c]=ch;

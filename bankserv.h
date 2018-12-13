@@ -24,6 +24,7 @@
 #define ERROR_ALREADY_SERVING_ACCOUNT -4
 #define ERROR_OVERDRAFT -5
 #define ERROR_IN_SERVICE_MODE -6
+#define ERROR_LESS_THAN_ZERO -7
 #define QUIT_CONNECTION 2
 
 
@@ -97,36 +98,41 @@ int runCommand(char* input, Session * session){
 void printError(int code, Session * session){
     char * error = "";
     if(code == ERROR_ACCOUNT_EXISTS){
-        error= "Cannot Create Account, Account With That Name Already Exists\n";
+        error= "Err: Cannot Create Account, Account With That Name Already Exists\n";
         //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ACCOUNT_DNE){
-        error="Cannot Serve Account, No Account Exists With That Name\n";
+        error="Err: Cannot Serve Account, No Account Exists With That Name\n";
         //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_ALREADY_SERVING_ACCOUNT){
-        error = "There is already a user connected to this account try again later\n";
+        error = "Err: There is already a user connected to this account try again later\n";
         //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_NOT_IN_ACCOUNT){
-        error = "Unable to fulfill request, you are not currently connected to an account\n";
+        error = "Err: Unable to fulfill request, you are not currently connected to an account\n";
         //printf("%s",error);
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_OVERDRAFT){
-        error="Your withdrawal is too large, this account does not have enough money\n";
+        error="Err: Your withdrawal is too large, this account does not have enough money\n";
         write(session->socketID,error,strlen(error)+1);
         return;
     }
     if(code == ERROR_IN_SERVICE_MODE){
-	error="Operation not permited, exit service mode to use this command\n";
+	error="Err: Operation not permited, exit service mode to use this command\n";
+        write(session->socketID,error,strlen(error)+1);
+        return;
+    }
+    if(code == ERROR_LESS_THAN_ZERO){
+	error="Err: Cannot deposit or withdraw negative numbers\n";
         write(session->socketID,error,strlen(error)+1);
         return;
     }
@@ -162,6 +168,9 @@ char * getData(char * input){
 }
 
 int createCommand(char * input, Session * session){
+    if(session->inAccount){
+	return ERROR_IN_SERVICE_MODE;
+    }
     char * buffer = getData(input);
     sem_wait(&accountLock);
     Account * cursor = Accounts;
@@ -241,6 +250,9 @@ int depositCommand(char * input, Session * session){
     if(session->inAccount){
         double amount;
         sscanf(request, "%lf", &amount);
+	if(amount < 0){
+		return ERROR_LESS_THAN_ZERO;
+	}
 	sem_wait(&accountLock);
         session->currentAccount->balance+=amount;
         sem_post(&accountLock);
@@ -263,6 +275,9 @@ int withdrawCommand(char * input, Session * session){
     if(session->inAccount){
         double amount;
         sscanf(request, "%lf", &amount);
+	if(amount < 0){
+		return ERROR_LESS_THAN_ZERO;
+	}
 	sem_wait(&accountLock);
         if(amount>session->currentAccount->balance){
             sem_post(&accountLock);
@@ -316,6 +331,9 @@ int endCommand(char * input, Session * session){
 }
 
 int quitCommand(char * input, Session * session){
+    if(session->inAccount){
+	return ERROR_IN_SERVICE_MODE;
+    }
     printf("<%s>: Disconnecting\n", session->clientIP);
     char * message =  "Ending Connection See you later\n";
     write(session->socketID,message,strlen(message)+1);
@@ -330,6 +348,7 @@ int quitCommand(char * input, Session * session){
     	session->currentAccount->connected=false;
     	session->currentAccount=NULL;
     	session->inAccount=false;
+	free(session);
       sem_post(&accountLock);
       
     }
@@ -361,6 +380,7 @@ void alarmHandler(int sig){
 
 void interuptHandler(int sig){
 	sem_wait(&accountLock);
+	alarm(0);
 	printf("Shutting Down Server\n");
 	Session * slast;
 	while(Sessions != NULL){
