@@ -46,7 +46,7 @@ int main(int argc, char * argv[]){
 	while(read(0, &ch, 1) > 0){
 		if(endFlag){
 			printf("Connection Terminated\n");
-			return;
+			return 0;
 		}
 		if(ch == '\n'){
 			buff[c]='\0';
@@ -71,7 +71,7 @@ int main(int argc, char * argv[]){
 		}
 		if(endFlag){
 			printf("Connection Terminated\n");
-			return;
+			return 0;
 		}
 		
  	}

@@ -10,7 +10,7 @@
 int main(int argc, char* argv[]) {
     if(argc != 2){
 	perror("Invalid Format Expecting 1 argument: server <PORT>\n");
-	exit(0);
+	return -1;
     }
     sem_init(&accountLock,0,1);
     signal(SIGALRM, alarmHandler);
@@ -34,7 +34,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     char buffer[1024];
-    printf("ENTERING LOOP\n");
     int clientLen = sizeof(clientAddr);
     while(1){
         int conn = accept(sockfd, (struct sockaddr*) &clientAddr, &clientLen);
