@@ -9,7 +9,7 @@
 int main(int argc, char * argv[]){
 	if(argc != 3){
 		printf("Bad Arguments expecting <Server Address> <Port>\n");
-		exit(0);
+		return 0;
 	}
 	struct sockaddr_in serv_addr;
 	int port = atoi(argv[2]);   
@@ -17,13 +17,13 @@ int main(int argc, char * argv[]){
    
    	if (sockfd < 0) {
       		perror("ERROR opening socket");
-      		exit(1);
+      		return 0;
    	}
 
    	struct hostent *server = gethostbyname(argv[1]);
 	if(server==NULL){
 		perror("Invalid Host Name\n");
-		exit(0);
+		return 0;
 	}
    	//serv_addr.sin_addr.s_addr = argv[1];
 	serv_addr.sin_family = AF_INET;
@@ -31,11 +31,11 @@ int main(int argc, char * argv[]){
 	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
    	if (server == NULL) {
       		fprintf(stderr,"ERROR, no such host\n");
-      		exit(0);
+      		return 0;
    	}
 	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
       		perror("ERROR connecting");
-      		exit(1);
+      		return 0;
    	}
 	
 	pthread_t tid;

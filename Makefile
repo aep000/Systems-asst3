@@ -6,9 +6,9 @@ server: bankserv.c
 client: bankclient.c
 	gcc bankclient.c -o bankingClient -lpthread -lm -g
 clean-client:
-	$(RM) client
+	$(RM) bankingClient
 clean-server:
-	$(RM) server
+	$(RM) bankingServer
 clean:
 	$(RM) server
 	$(RM) client

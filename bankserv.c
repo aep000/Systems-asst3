@@ -10,7 +10,7 @@
 int main(int argc, char* argv[]) {
     if(argc != 2){
 	perror("Invalid Format Expecting 1 argument: server <PORT>\n");
-	return -1;
+	return 0;
     }
     sem_init(&accountLock,0,1);
     signal(SIGALRM, alarmHandler);
@@ -27,11 +27,11 @@ int main(int argc, char* argv[]) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr))==-1){
         printf("BIND FAILED\n");
-        return -1;
+        return 0;
     }
     if(-1==listen(sockfd, 12)){
         printf("LISTEN FAILED\n");
-        return -1;
+        return 0;
     }
     char buffer[1024];
     int clientLen = sizeof(clientAddr);
